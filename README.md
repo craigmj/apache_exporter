@@ -31,24 +31,26 @@ With my apache_exporter checked out to `/opt/apache_exporter`, create this syste
     Type=simple
     ExecStart=/opt/apache_exporter/bin/apache_exporter
 
-The start apache_exporter:
+Start apache_exporter:
 
     sudo systemctl daemon-reload
     sudo systemctl enable apache_exporter.service
     sudo systemctl start apache_exporter.service
 
-You can check on it:
+Check on it:
 
     sudo systemctl status apache_exporter.service
 
 ## Installation (prometheus)
 
-I add this the `scrape_configs` section of my `prometheus.yml` file:
+I add this to the `scrape_configs` section of my `prometheus.yml` file:
 
     - job_name: "apache"
       scrape_interval: "15s"
       static_configs:
       - targets: ['localhost:9117']
+
+(see `prometheus.yml` for my example prometheus.yml file)
 
 ## Installation (original article)
 
