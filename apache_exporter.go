@@ -25,6 +25,22 @@ var (
 	insecure         = flag.Bool("insecure", false, "Ignore server certificate if using https.")
 )
 
+// counterFloat provides a means to 'Set' a Counter whereas the prometheus
+// API only provides an 'Add' method. So we just track the previous value,
+// and 'Add' the differences.
+type counterFloat struct {
+	prometheus.Counter
+	last float64
+}
+
+func newCounterFloat(c prometheus.Counter) *counterFloat {
+	return &counterFloat{c, 0}
+}
+func (dc *counterFloat) Set(v float64) {
+	dc.Counter.Add(v - dc.last)
+	dc.last = v
+}
+
 type Exporter struct {
 	URI    string
 	mutex  sync.Mutex
@@ -32,9 +48,9 @@ type Exporter struct {
 
 	up             prometheus.Gauge
 	scrapeFailures prometheus.Counter
-	accessesTotal  prometheus.Counter
-	kBytesTotal    prometheus.Counter
-	uptime         prometheus.Counter
+	accessesTotal  *counterFloat
+	kBytesTotal    *counterFloat
+	uptime         *counterFloat
 	workers        *prometheus.GaugeVec
 	scoreboard     *prometheus.GaugeVec
 	connections    *prometheus.GaugeVec
@@ -53,21 +69,21 @@ func NewExporter(uri string) *Exporter {
 			Name:      "exporter_scrape_failures_total",
 			Help:      "Number of errors while scraping apache.",
 		}),
-		accessesTotal: prometheus.NewCounter(prometheus.CounterOpts{
+		accessesTotal: newCounterFloat(prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "accesses_total",
 			Help:      "Current total apache accesses",
-		}),
-		kBytesTotal: prometheus.NewCounter(prometheus.CounterOpts{
+		})),
+		kBytesTotal: newCounterFloat(prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "sent_kilobytes_total",
 			Help:      "Current total kbytes sent",
-		}),
-		uptime: prometheus.NewCounter(prometheus.CounterOpts{
+		})),
+		uptime: newCounterFloat(prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "uptime_seconds_total",
 			Help:      "Current uptime in seconds",
-		}),
+		})),
 		workers: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "workers",
@@ -190,7 +206,6 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 			if err != nil {
 				return err
 			}
-
 			e.accessesTotal.Set(val)
 			e.accessesTotal.Collect(ch)
 		case key == "Total kBytes":
@@ -206,7 +221,6 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 			if err != nil {
 				return err
 			}
-
 			e.uptime.Set(val)
 			e.uptime.Collect(ch)
 		case key == "BusyWorkers":

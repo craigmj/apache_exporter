@@ -2,9 +2,63 @@
 
 Exports apache mod_status statistics via HTTP for Prometheus consumption.
 
-With working golang environment it can be built with `go get`.  There is a [good article](https://machineperson.github.io/monitoring/2016/01/04/exporting-apache-metrics-to-prometheus.html) with build HOWTO and usage example.
+An update of the `apache_exporter` script from https://github.com/neezgee/apache_exporter to work with the latest Prometheus go-lang API (as at October 2016 - 1.3beta).
 
-Help on flags:
+## Building
+
+Checkout to a local directory:
+
+    git clone https://github.com/craigmj/apache_exporter.git
+
+cd into the directory and, with an installed version of golang (https://golang.org):
+
+    cd apache_exporter
+    ./build.sh
+
+You should now have a working `bin/apache_exporter`
+
+## Installation (systemd)
+
+Once the binary is built, you need to auto-start it on your box.
+
+With my apache_exporter checked out to `/opt/apache_exporter`, create this systemd unit script in `/lib/systemd/system/apache_exporter.service`
+
+    [Unit]
+    Description=apache_exporter exports apache stats to prometheus
+    [Install]
+    WantedBy=multi-user.target
+    [Service]
+    Type=simple
+    ExecStart=/opt/apache_exporter/bin/apache_exporter
+
+The start apache_exporter:
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable apache_exporter.service
+    sudo systemctl start apache_exporter.service
+
+You can check on it:
+
+    sudo systemctl status apache_exporter.service
+
+## Installation (prometheus)
+
+I add this the `scrape_configs` section of my `prometheus.yml` file:
+
+    - job_name: "apache"
+      scrape_interval: "15s"
+      static_configs:
+      - targets: ['localhost:9117']
+
+## Installation (original article)
+
+The original code suggested:
+
+"With working golang environment it can be built with `go get`.  There is a [good article](https://machineperson.github.io/monitoring/2016/01/04/exporting-apache-metrics-to-prometheus.html) with build HOWTO and usage example."
+
+Note, though, that the prometheus config described on this link does not work with the latest (as at October 2016) version of prometheus (1.3beta).
+
+## Help on flags:
 
 ```
   -insecure
@@ -20,4 +74,5 @@ Help on flags:
 ```
 
 Tested on Apache 2.2 and Apache 2.4.
+
 
